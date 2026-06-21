@@ -48,4 +48,4 @@ Special thanks to the **Center for Cryptography and Cybersecurity (CCS)** and **
 ---
 
 ## 👤 Author
-*   **Sourav Sharma** - *M.Sc. Student, IISER Bhopal* (email: [souravs24@iiserb.ac.in](mailto:souravs24@iiserb.ac.in))
+*   **Sourav Sharma** - *CSE Student, IISER Bhopal*
