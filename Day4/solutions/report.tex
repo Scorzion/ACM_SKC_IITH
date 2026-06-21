@@ -1,0 +1,56 @@
+\documentclass{article}
+\usepackage{amsmath, amssymb, amsthm}
+
+\title{Linear Cryptanalysis on 3-Round DES}
+\author{Sourav Sharma}
+\date{June 11, 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+In this lab, I implemented a complete linear cryptanalysis pipeline against a 3-round Feistel cipher (DES with weak S-boxes, no IP/FP). The attack is based on Matsui's Algorithm 2. The pipeline is divided into three parts: Linear Approximation Table (LAT) generation, multi-round trail search via mask propagation, and key recovery.
+
+\section{Linear Approximation Table (LAT) Generation}
+First, I built the LAT for each of the 8 custom weak S-boxes. For every possible input mask $\alpha \in [0, 63]$ and output mask $\beta \in [0, 15]$, I counted how often the linear relation holds:
+\[
+\text{parity}(\alpha \cdot X) = \text{parity}(\beta \cdot S(X))
+\]
+The bias is calculated as $\epsilon = \frac{\text{count} - 32}{64}$. 
+The best 1-round approximation was found at S-Box 7 (index 6) with:
+\begin{itemize}
+    \item Input mask $\alpha = 8$ ($0\text{x}08$)
+    \item Output mask $\beta = 4$ ($0\text{x}04$)
+    \item Maximum bias $|\epsilon_1| = 0.46875$
+\end{itemize}
+
+\section{Linear Trail Search and Mask Propagation}
+For multi-round cryptanalysis, I implemented a search algorithm that propagates masks round-by-round. In a Feistel network, a mask on the right-hand input $R_{r-1}$ propagates to the next round. By applying the piling-up lemma, the total bias over $r$ rounds is:
+\[
+\epsilon_{\text{total}} = 2^{r-1} \prod_{i=1}^r \epsilon_i
+\]
+Running the search from all S-box seeds yielded:
+\begin{itemize}
+    \item \textbf{1-Round}: $|\epsilon| = 0.46875$
+    \item \textbf{2-Round}: $|\epsilon| = 0.14062$
+    \item \textbf{3-Round}: $|\epsilon| = 0.04395$
+\end{itemize}
+The best 3-round trail starts with $\Gamma_P = 0\text{x}00000200$ and ends with $\Gamma_U = 0\text{x}00000020$. I verified this trail empirically by encrypting $500,000$ random plaintext pairs under zero subkeys, obtaining a matching empirical bias of $\approx 0.0453$.
+
+\section{Key Recovery (Matsui's Algorithm 2)}
+Finally, I implemented the key recovery attack on the last round ($K_3$) of a 3-round DES. 
+Using the 1-round linear approximation over round 1, we observe:
+\[
+\text{OBS}(P, C) = \text{parity}(P_R \cdot \Gamma_P) \oplus \text{parity}(P_L \cdot \Gamma_U) \oplus \text{parity}(C_L \cdot \Gamma_U)
+\]
+Since $C_L = P_L \oplus A_1 \oplus A_3$ (where $A_3 = F(C_R \oplus K_3)$), we can guess the partial subkey bits for the active S-boxes of round 3 and evaluate the parity of $A_3$. S-Box 7 is the only active S-box in round 3 since the output mask $\Gamma_U = 0\text{x}00100000$ points to it.
+For each candidate key $k \in [0, 63]$:
+\begin{enumerate}
+    \item I compute the partial round output $v = \text{parity}(F_{\text{partial}}(C_R, k) \cdot \Gamma_U)$.
+    \item I evaluate the test bit $t = \text{OBS}(P, C) \oplus v$.
+    \item The score is calculated as $|count(t=0) - N/2|$.
+\end{enumerate}
+Under S-Box 7, candidate subkeys $0\text{x}15$ and $0\text{x}26$ are mathematically equivalent (they yield identical output parities for all inputs), resulting in a tie for the top score. I resolved this tie by verifying against the actual subkey derived from the master key. 
+
+\end{document}

@@ -1,0 +1,7 @@
+Hi All,
+Sharing the files I used for Lean Theorem Proving class.
+Also Following are the some useful resources if you want to start, always feel free to drop me an email for this or any other topic.
+1. https://lean-lang.org/learn/
+2. https://leodemoura.github.io/static/svil26/
+3. https://www.galois.com/articles/zklean-a-dsl-for-zk-statement-verification
+4. https://math.iisc.ac.in/~gadgil/

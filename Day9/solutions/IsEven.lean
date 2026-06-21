@@ -1,0 +1,117 @@
+import Mathlib -- imports definitions and theorems used below
+
+/-!
+## Prerequisite files
+
+* `People.lean` - structures and named fields.
+* `BinTree.lean` - inductive types, recursive functions on trees, and membership proofs.
+
+## Main concepts introduced
+
+* inductive propositions beyond types
+-- Another place showing propositions and types are same,
+-/
+
+/-!
+# Even Natural Numbers
+
+Inductive types can also be used to define propositions, which are types whose values are proofs of the proposition. In this file, we define the property of being an even natural number using an inductive predicate and provide several proofs about even numbers.
+
+This is in some sense like axiomatizing a property
+
+
+This module defines the property of being an even natural number using an inductive predicate
+and provides several proofs about even numbers.
+-/
+
+namespace cssschool -- starts a namespace to group the tutorial definitions
+
+/--
+Inductive predicate for even natural numbers.
+* `0` is even.
+* If `n` is even, then `n + 2` is even.
+-/
+--@grind does not work with inductive propositions, so we use @[grind cases] to tell it to do case analysis on the constructors of `IsEven` when proving theorems about it.
+
+
+@[grind cases] -- annotation controlling elaboration, simplification, or automation
+inductive IsEven : (n : Nat) → Prop -- declares the inductive type or proposition `IsEven`
+  | zeroEven : IsEven 0 -- declares another constructor or syntax alternative
+  | addTwoEven (n : Nat) (h : IsEven n) : IsEven (n + 2) -- declares another constructor or syntax alternative
+
+open IsEven -- opens names so constructors or helpers can be written unqualified
+
+/--
+Rather than using the axiom/property directly, use it in an extrinsic way by defining theorems for the property.
+
+Zero is even.
+-/
+@[grind .] -- annotation controlling elaboration, simplification, or automation
+theorem zero_even : IsEven 0 := by -- starts tactic mode for theorem `zero_even`; the following tactics prove the stated goal
+  apply zeroEven -- applies `zeroEven` backwards, replacing the current goal by its premises
+
+/--
+If `n` is even, then `n + 2` is even.
+-/
+@[grind .] -- annotation controlling elaboration, simplification, or automation
+theorem addTwo_even (n: Nat) (h: IsEven n) : -- states and proves theorem `addTwo_even`
+  IsEven (n + 2) := by -- starts tactic mode; the following tactics prove the proposition just stated
+    apply addTwoEven -- applies `addTwoEven` backwards, replacing the current goal by its premises
+    assumption -- solves the goal from an existing hypothesis
+
+/--
+Twice any natural number is even.
+-/
+theorem IsEven_two_mul (n : Nat) : IsEven (2 * n) := by -- starts tactic mode for theorem `IsEven_two_mul`; the following tactics prove the stated goal
+  induction n <;> grind -- performs induction on `n` and sends each base/step goal to `grind`
+
+/--
+The successor of an even number is not even (i.e., it is odd).
+-/
+theorem succ_odd_of_isEven {n : Nat} -- states and proves theorem `succ_odd_of_isEven`
+  (h : IsEven n) :
+    ¬ IsEven (n + 1) := by -- starts tactic mode; the following tactics prove the proposition just stated
+  induction h <;> grind -- performs induction on `h` and sends each base/step goal to `grind`
+
+/--
+For any natural number `n`, either `n` is even or `n + 1` is even.
+-/
+theorem nOrSuccNeven (n : Nat) : IsEven n ∨ IsEven (n + 1) -- states and proves theorem `nOrSuccNeven`
+  := by -- starts tactic mode; the following tactics prove the proposition just stated
+  induction n <;> grind -- performs induction on `n` and sends each base/step goal to `grind`
+
+inductive IsOdd : Nat → Prop
+  | oneOdd : IsOdd 1
+  | addTwoOdd (n : Nat) (h : IsOdd n) : IsOdd (n + 2)
+
+open IsOdd
+
+theorem even_or_odd (n : Nat) : IsEven n ∨ IsOdd n := by
+  induction n using Nat.strong_induction_on with
+  | h n' ih =>
+    cases n' with
+    | zero => left; exact zeroEven
+    | succ n'' =>
+      cases n'' with
+      | zero => right; exact oneOdd
+      | succ n''' =>
+        have ih2 := ih (n''') (by omega)
+        cases ih2 with
+        | inl he => left; exact addTwoEven n''' he
+        | inr ho => right; exact addTwoOdd n''' ho
+
+theorem not_even_and_odd {n : Nat} (he : IsEven n) (ho : IsOdd n) : False := by
+  induction he with
+  | zeroEven =>
+    cases ho
+  | addTwoEven k he' ih =>
+    cases ho with
+    | addTwoOdd _ ho' =>
+      exact ih ho'
+
+end cssschool -- closes the current namespace or section
+/-!
+## Next files
+
+* `Adder.lean` - typeclasses; instances of typeclasses; typeclass inference. (recommended next file).
+-/

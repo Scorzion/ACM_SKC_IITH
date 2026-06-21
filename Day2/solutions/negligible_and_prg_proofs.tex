@@ -1,0 +1,197 @@
+\documentclass{article}
+\usepackage{amsmath, amssymb, amsthm}
+
+\title{ACM India Summer School on Symmetric Key Cryptography \\ Day 2: Negligible Functions, PRGs, and PRFs Solutions}
+\author{Sourav Sharma}
+\date{June 9, 2026}
+
+\newtheorem{claim}{Claim}
+\newtheorem{theorem}{Theorem}
+
+\begin{document}
+
+\maketitle
+
+\section{Negligible Functions}
+
+A function $g(k)$ is negligible (denoted $g(k) \in \text{negl}(k)$) if for every constant $c > 0$, there exists a $k' \in \mathbb{N}$ such that for all $k \geq k'$:
+\[
+|g(k)| < \frac{1}{k^c}
+\]
+
+\begin{claim}
+Let $\text{negl}_1$ and $\text{negl}_2$ be two negligible functions. Then $g(k) = \text{negl}_1(k) + \text{negl}_2(k)$ is also negligible.
+\end{claim}
+\begin{proof}
+We need to prove that for any arbitrary constant $c > 0$, there exists a $k'$ such that for all $k \geq k'$, $\text{negl}_1(k) + \text{negl}_2(k) < \frac{1}{k^c}$.
+
+Let $c' = c + 1$. Since $\text{negl}_1$ and $\text{negl}_2$ are negligible:
+\begin{itemize}
+    \item There exists $k_1$ such that for all $k \geq k_1$, $\text{negl}_1(k) < \frac{1}{2k^c}$ (by considering the polynomial $2k^c$).
+    \item There exists $k_2$ such that for all $k \geq k_2$, $\text{negl}_2(k) < \frac{1}{2k^c}$.
+\end{itemize}
+Let $k' = \max\{k_1, k_2\}$. For all $k \geq k'$:
+\[
+\text{negl}_1(k) + \text{negl}_2(k) < \frac{1}{2k^c} + \frac{1}{2k^c} = \frac{1}{k^c}
+\]
+Thus, the sum is negligible.
+\end{proof}
+
+\begin{claim}
+A negligible function stays negligible even after polynomial multiplication: $\text{poly}(k) \cdot \text{negl}(k) = \text{negl}(k)$.
+\end{claim}
+\begin{proof}
+Let $p(k) = k^a$ for some constant $a > 0$ represent the polynomial, and $g(k)$ be a negligible function. We want to show that $p(k) \cdot g(k)$ is negligible.
+For any constant $c > 0$, let $c' = c + a$. Since $g(k)$ is negligible, for the constant $c'$, there exists $k'$ such that for all $k \geq k'$:
+\[
+g(k) < \frac{1}{k^{c'}} = \frac{1}{k^{c+a}}
+\]
+Multiplying both sides by $p(k) = k^a$:
+\[
+p(k) \cdot g(k) < k^a \cdot \frac{1}{k^{c+a}} = \frac{1}{k^c}
+\]
+Thus, $p(k) \cdot g(k)$ is negligible.
+\end{proof}
+
+\begin{claim}
+If $f(k)$ is not a negligible function and $g(k)$ is a negligible function, then $h(k) = f(k) - g(k)$ is not a negligible function.
+\end{claim}
+\begin{proof}
+We prove this by contradiction. Assume that $h(k) = f(k) - g(k)$ is a negligible function. 
+Since the sum of two negligible functions is negligible (by Claim 1), and both $h(k)$ and $g(k)$ are negligible under our assumption, it follows that:
+\[
+f(k) = h(k) + g(k)
+\]
+must also be a negligible function.
+This directly contradicts the given assumption that $f(k)$ is not a negligible function. Therefore, the assumption that $f(k) - g(k)$ is negligible must be false. Hence, $f(k) - g(k)$ is not negligible.
+\end{proof}
+
+\section{Pseudorandom Generators (PRGs)}
+
+\begin{claim}
+Let $G_1, G_2 : \{0, 1\}^n \to \{0, 1\}^{2n}$ be two secure PRGs with $G_1 \neq G_2$. Define $G(s) = G_1(s) \oplus G_2(s)$. Is $G$ necessarily a PRG?
+\end{claim}
+\begin{proof}
+No, $G$ is not necessarily a PRG. We show a counterexample.
+Let $G_1 : \{0,1\}^n \to \{0,1\}^{2n}$ be a secure PRG. Define $G_2(s) = G_1(s) \oplus 1^{2n}$. Since $G_1$ is a secure PRG, its XOR with a constant string $1^{2n}$ is also a secure PRG. However, computing $G(s)$ gives:
+\[
+G(s) = G_1(s) \oplus G_2(s) = G_1(s) \oplus G_1(s) \oplus 1^{2n} = 1^{2n}
+\]
+The output of $G(s)$ is always the constant string $1^{2n}$. A distinguisher $D(w)$ that outputs $1$ if $w = 1^{2n}$ and $0$ otherwise distinguishes $G(s)$ from the uniform distribution $U_{2n}$ with probability $1 - 2^{-2n}$, which is non-negligible. Thus, $G$ is not a secure PRG.
+\end{proof}
+
+\begin{claim}
+Let $G$ be a secure PRG with expansion factor $\ell(n) > 2n$. Say whether $G_1$ is necessarily a PRG:
+\begin{enumerate}
+    \item $G_1(s) = G(s_1 \dots s_{\lfloor n/2 \rfloor})$
+    \item $G_1(s) = G(0^{|s|} \parallel s)$
+    \item $G_1(s) = G(s) \parallel G(s+1)$
+\end{enumerate}
+\end{claim}
+\begin{proof}[Solutions]
+\hfill
+\begin{enumerate}
+    \item \textbf{No.} $G_1$ does not satisfy the expansion requirement. If $\ell(n) = 2n + 1$, then for the input of length $n$, the output of $G_1(s)$ has length $\ell(\lfloor n/2 \rfloor) = 2\lfloor n/2 \rfloor + 1 \leq n + 1$, which is not strictly greater than the input size $n$ for all cases (e.g. for odd $n$).
+    
+    \item \textbf{No.} We can construct a counterexample. Let $\hat{G} : \{0,1\}^{2n} \to \{0,1\}^{\ell(2n)}$ be a secure PRG. Define $G(s_1)$ as:
+    \[
+    G(s_1) = \begin{cases}
+    0^{\ell(2n)} & \text{if the first } n \text{ bits of } s_1 \text{ are all zeros} \\
+    \hat{G}(s_1) & \text{otherwise}
+    \end{cases}
+    \]
+    Since the probability of a uniform $s_1$ starting with $0^n$ is $2^{-n}$ (which is negligible), $G$ is still a secure PRG. But if we define $G_1(s) = G(0^{|s|} \parallel s)$, the first half of its seed is always $0^{|s|}$, meaning $G_1(s)$ always outputs $0^{\ell(2n)}$. This is trivially distinguishable from a random distribution.
+    
+    \item \textbf{No.} We show a counterexample. Let $G' : \{0,1\}^n \to \{0,1\}^{\ell(n)-1}$ be a secure PRG. We construct a secure PRG $G : \{0,1\}^n \to \{0,1\}^{\ell(n)}$ as follows:
+    \[
+    G(s) = \begin{cases}
+    G'(s) \parallel 0 & \text{if } s \text{ is even (i.e. the LSB of } s \text{ is } 0\text{)} \\
+    G'(s-1) \parallel 1 & \text{if } s \text{ is odd (i.e. the LSB of } s \text{ is } 1\text{)}
+    \end{cases}
+    \]
+    Since LSB of a uniform seed $s$ is $0$ or $1$ with probability $1/2$, the last bit of $G(s)$ is uniform, and $G(s)$ is a secure PRG.
+    
+    Now, let's analyze $G_1(s) = G(s) \parallel G(s+1)$ where $s+1$ is addition modulo $2^n$:
+    \begin{itemize}
+        \item If $s$ is even, $s+1$ is odd. Then:
+        \[
+        G_1(s) = [G'(s) \parallel 0] \parallel [G'((s+1)-1) \parallel 1] = G'(s) \parallel 0 \parallel G'(s) \parallel 1
+        \]
+        Here, the last bit of the first half is $0$, and the last bit of the second half is $1$.
+        \item If $s$ is odd, $s+1$ is even. Then:
+        \[
+        G_1(s) = [G'(s-1) \parallel 1] \parallel [G'(s+1) \parallel 0]
+        \]
+        Here, the last bit of the first half is $1$, and the last bit of the second half is $0$.
+    \end{itemize}
+    In both cases, the last bit of the first half of $G_1(s)$ and the last bit of the second half are always different (i.e. their XOR is always $1$). A distinguisher can check if the XOR of these two bits is $1$. For $G_1(s)$ it is always $1$ (probability $1$), whereas for a uniform random string it is $1$ with probability $1/2$. This yields a distinguishing advantage of $1/2$, proving $G_1$ is not a secure PRG.
+\end{enumerate}
+\end{proof}
+
+\section{Pseudorandom Functions (PRFs)}
+
+\begin{claim}
+Consider $F_{A,b}(x) = Ax + b \pmod 2$, where $A$ is an $n \times n$ boolean matrix and $b$ is an $n$-bit vector. Show that $F$ is not a secure PRF.
+\end{claim}
+\begin{proof}
+A secure PRF is computationally indistinguishable from a truly random function. However, the construction $F_{A,b}(x) = Ax + b \pmod 2$ is linear (affine). It satisfies the following relation for any inputs $x, y \in \{0, 1\}^n$:
+\[
+F_{A,b}(x) \oplus F_{A,b}(y) \oplus F_{A,b}(x \oplus y) = (Ax + b) \oplus (Ay + b) \oplus (A(x \oplus y) + b)
+\]
+\[
+= Ax \oplus b \oplus Ay \oplus b \oplus Ax \oplus Ay \oplus b = b
+\]
+Thus, the XOR sum $F_{A,b}(x) \oplus F_{A,b}(y) \oplus F_{A,b}(x \oplus y)$ is always constant and equals the vector $b$ for all $x, y$.
+
+We construct a distinguisher $D$ that queries the oracle $O$ on:
+\begin{enumerate}
+    \item $u, v$ and computes $t_1 = O(u) \oplus O(v) \oplus O(u \oplus v)$.
+    \item $x, y$ (distinct from $u, v$) and computes $t_2 = O(x) \oplus O(y) \oplus O(x \oplus y)$.
+\end{enumerate}
+If $t_1 = t_2$, the distinguisher outputs $1$ (guessing $O$ is $F_{A,b}$); otherwise it outputs $0$.
+\begin{itemize}
+    \item If $O = F_{A,b}$, then $t_1 = t_2 = b$ always, so $D$ outputs $1$ with probability $1$.
+    \item If $O$ is a truly random function, $t_1$ and $t_2$ are independent uniform random $n$-bit strings, so $t_1 = t_2$ with probability $2^{-n}$.
+\end{itemize}
+The distinguishing advantage is $1 - 2^{-n}$, which is non-negligible. Thus, $F_{A,b}$ is not a secure PRF.
+\end{proof}
+
+\begin{claim}
+Let $F$ be a length-preserving pseudorandom function. Show that the keyed function $F': \{0, 1\}^{n-1} \to \{0, 1\}^{2n}$ defined by $F'_k(x) = F_k(0 \parallel x) \parallel F_k(1 \parallel x)$ is a pseudorandom function.
+\end{claim}
+\begin{proof}
+We prove security of $F'$ using a hybrid argument. We assume for contradiction that there exists a PPT distinguisher $D$ that distinguishes $F'_k(x)$ from a truly random function $R: \{0, 1\}^{n-1} \to \{0, 1\}^{2n}$ with non-negligible advantage.
+
+Define the following hybrid distributions for a fixed input $x$:
+\begin{itemize}
+    \item $H_0 = F_k(0 \parallel x) \parallel F_k(1 \parallel x)$ (which is the output of $F'_k(x)$)
+    \item $H_1 = U_n \parallel F_k(1 \parallel x)$ (where the first half is replaced by a uniform $n$-bit random string $U_n$)
+    \item $H_2 = U_n \parallel U_n$ (which is a uniformly random $2n$-bit string)
+\end{itemize}
+
+If $D$ distinguishes $H_0$ from $H_2$ with non-negligible advantage, then by the hybrid argument, $D$ must distinguish $H_0$ from $H_1$, or $H_1$ from $H_2$ (or both) with non-negligible advantage.
+
+\paragraph{Case 1: Distinguishing $H_0$ from $H_1$.}
+Suppose $| \Pr[D(H_0) = 1] - \Pr[D(H_1) = 1] |$ is non-negligible. We construct a PPT distinguisher $D_1$ against the PRF $F$. Given oracle access to a function $\mathcal{O}$ (which is either $F_k$ or a truly random function), $D_1$ does the following:
+\begin{enumerate}
+    \item Query $\mathcal{O}$ on $0 \parallel x$ to obtain $y$.
+    \item Independently compute $F_k(1 \parallel x)$.
+    \item Query $D$ on the input $y \parallel F_k(1 \parallel x)$.
+    \item Output whatever $D$ outputs.
+\end{enumerate}
+If $\mathcal{O} = F_k$, the input to $D$ is distributed exactly as $H_0$. If $\mathcal{O}$ is a truly random function, the input to $D$ is distributed as $H_1$. Thus, $D_1$ distinguishes $F$ from a random function with non-negligible advantage, contradicting the security of $F$ as a PRF.
+
+\paragraph{Case 2: Distinguishing $H_1$ from $H_2$.}
+Suppose $| \Pr[D(H_1) = 1] - \Pr[D(H_2) = 1] |$ is non-negligible. We construct a PPT distinguisher $D_2$ against the PRF $F$ similarly. Given oracle access to $\mathcal{O}$:
+\begin{enumerate}
+    \item Query $\mathcal{O}$ on $1 \parallel x$ to obtain $y$.
+    \item Choose a uniform random string $r \leftarrow \{0, 1\}^n$.
+    \item Query $D$ on the input $r \parallel y$.
+    \item Output whatever $D$ outputs.
+\end{enumerate}
+If $\mathcal{O} = F_k$, the input to $D$ is distributed exactly as $H_1$. If $\mathcal{O}$ is a truly random function, the input to $D$ is distributed as $H_2$. Thus, $D_2$ distinguishes $F$ from a random function with non-negligible advantage, contradicting the security of $F$.
+
+Since both cases lead to contradictions, the transition from $H_0$ to $H_2$ cannot be distinguished with non-negligible advantage. Therefore, $H_0 \approx_c H_2$, and $F'_k(x)$ is a pseudorandom function.
+\end{proof}
+
+\end{document}

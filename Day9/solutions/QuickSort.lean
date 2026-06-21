@@ -1,0 +1,172 @@
+import Mathlib -- imports definitions and theorems used below
+import Basic -- imports definitions and theorems used below
+import Sorted -- imports definitions and theorems used below
+/-!
+## Prerequisite files
+
+* `Sorted.lean` - sorted-list predicates and equivalent characterizations of sortedness.
+
+Many conceps are used here, but they are already prerequisites for `Sorted.lean`.
+
+## Main concepts introduced
+
+* quicksort.
+* termination arguments.
+* sortedness proofs.
+-/
+
+
+-- Defiines properties of objects/structures using axioms
+
+
+/-!
+## Quicksort Algorithm (Pivot from Head)
+
+Quicksort is a divide-and-conquer sorting algorithm known for its efficiency. It works by recursively partitioning the list around a chosen element (pivot) and then sorting the sub-lists.
+
+Our implementation of quicksort for lists follows the following steps:
+
+* If the list is empty, return the empty list.
+* Otherwise, let `pivot` be the first element (`head`) of the list.
+* Let `smaller` be the list of elements smaller (`≤`) than `pivot` and `larger` be the list of elements larger (`>`) than `pivot`.
+* Recursively sort `smaller` and `larger` lists and concatenate them with `pivot` in between.
+
+We begin by defining `smaller` and `larger` lists. We define them as abbreviations so that they are automatically unfolded by Lean.
+-/
+namespace cssschool -- starts a namespace to group the tutorial definitions
+variable {α : Type}[LinearOrder α]
+
+/--
+Returns a sublist of elements from `l` that are less than or equal to the `pivot`.
+-/
+@[grind, simp] -- annotation controlling elaboration, simplification, or automation
+def smaller (pivot : α) (l : List α) : List α := -- defines `smaller`
+  l.filter (· ≤  pivot) -- maps this case or syntax pattern to its result
+
+/--
+Returns a sublist of elements from `l` that are strictly greater than the `pivot`.
+-/
+@[grind, simp] -- annotation controlling elaboration, simplification, or automation
+def larger (pivot : α) (l : List α) : List α := -- defines `larger`
+  l.filter (pivot < ·) -- maps this case or syntax pattern to its result
+
+/--
+A partial (non-terminating) implementation of Quicksort.
+-/
+partial def naiveQuickSort : List α → List α -- defines the partial function `naiveQuickSort`
+  | [] => [] -- matches the empty list and returns the empty list
+  | pivot :: l => -- matches a nonempty list and returns the recursively sorted parts around the pivot
+    (naiveQuickSort (smaller pivot l)) ++
+    pivot :: (naiveQuickSort (larger pivot l))
+
+/--
+The verified implementation of Quicksort for lists.
+Terminates because the filtered sublists are strictly smaller than the original list.
+-/
+def quickSort : List α → List α -- defines `quickSort`
+  | [] => [] -- matches the empty list and returns the empty list
+  | pivot :: l => -- matches a nonempty list and returns the recursively sorted parts around the pivot
+    (quickSort (smaller pivot l)) ++ pivot :: (quickSort (larger pivot l))
+termination_by l => l.length -- tells Lean which expression decreases for termination
+
+
+/--
+Quicksort of an empty list is an empty list.
+-/
+@[simp, grind .] -- annotation controlling elaboration, simplification, or automation
+theorem quickSort_nil : quickSort ([] : List α) = [] := by -- starts tactic mode for theorem `quickSort_nil`; the following tactics prove the stated goal
+  simp [quickSort] -- simplifies the current goal or hypotheses
+
+/--
+Recursive step of the Quicksort implementation.
+-/
+@[simp, grind .] -- annotation controlling elaboration, simplification, or automation
+theorem quickSort_cons (pivot : α) (l : List α) : -- states and proves theorem `quickSort_cons`
+    quickSort (pivot :: l) = (quickSort (smaller pivot l)) ++
+    pivot :: (quickSort (larger pivot l)) := by -- starts tactic mode; the following tactics prove the proposition just stated
+  simp [quickSort] -- simplifies the current goal or hypotheses
+
+/--
+An element is in the original list if and only if it is in the `smaller` or `larger` sublists
+(when partitioning around a pivot).
+-/
+@[grind .] -- annotation controlling elaboration, simplification, or automation
+theorem mem_iff_below_or_above_pivot (pivot : α) -- states and proves theorem `mem_iff_below_or_above_pivot`
+  (l : List α)(x : α) :
+    x ∈ l ↔ x ∈ smaller pivot l ∨ x ∈ larger pivot l := by grind -- starts tactic mode and asks `grind` to solve the stated goal automatically
+
+/--
+The `quickSort` function preserves the elements of the list.
+-/
+@[grind =_] -- annotation controlling elaboration, simplification, or automation
+theorem mem_iff_mem_quickSort (l: List α)(x : α) : -- states and proves theorem `mem_iff_mem_quickSort`
+    x ∈ l ↔ x ∈ quickSort l := by -- starts tactic mode; the following tactics prove the proposition just stated
+  fun_induction quickSort <;> grind -- follows the recursive equations of `quickSort` and lets `grind` solve each generated case
+
+/--
+Concatenating two sorted lists with a pivot in between results in a sorted list,
+provided the pivot respects the bounds of both lists.
+-/
+@[grind .] -- annotation controlling elaboration, simplification, or automation
+theorem sorted_sandwitch (l₁ : List α) (h₁ : Sorted l₁) (l₂ : List α) (h₂ : Sorted l₂)
+    (bound : α) (h_bound₁ : ∀ x ∈ l₁, x ≤ bound) (h_bound₂ : ∀ x ∈ l₂, bound ≤ x) : Sorted (l₁ ++ bound :: l₂) := by
+    induction h₁ with
+    | nil => grind -- matches the empty list and asks `grind` to solve this case
+    | singleton x => -- matches a sorted singleton list proof and proves this case with the tactic steps below
+      grind [Sorted.step] -- uses `grind` with the listed lemmas unfolded or available to close the remaining goal
+    | step x y l hxy tail_sorted ih => -- matches a sorted list built from a head and sorted tail and proves this case with the tactic steps below
+      grind [Sorted.step] -- uses `grind` with the listed lemmas unfolded or available to close the remaining goal
+
+/--
+The `quickSort` function correctly sorts any input list.
+-/
+theorem quickSort_sorted (l : List α) : Sorted (quickSort l) := by -- starts tactic mode for theorem `quickSort_sorted`; the following tactics prove the stated goal
+  fun_induction quickSort <;> grind -- follows the recursive equations of `quickSort` and lets `grind` solve each generated case
+
+section Count
+/-!
+## Exercises
+
+Prove that quickSort preserves the count of each element. A useful lemma was not annotated with `grind` so this is done below.
+-/
+attribute [grind .] List.count_eq_zero_of_not_mem
+
+
+/--
+The count of an element in a list is the sum of its counts in the partitioned sublists.
+-/
+@[grind .]
+theorem count_sum_above_below_pivot (pivot : α) (l : List α) (x : α) :
+    (l.count x) = (smaller pivot l).count x + (larger pivot l).count x  := by
+  induction l with
+  | nil => simp
+  | cons y ys ih =>
+    dsimp [smaller, larger]
+    split_ifs with h1 h2
+    · have : y < y := lt_of_lt_of_le h2 h1
+      exact (lt_irrefl y this).elim
+    · dsimp [List.count]
+      split_ifs with hyx
+      · simp [ih]
+      · exact ih
+    · dsimp [List.count]
+      split_ifs with hyx
+      · simp [ih]
+      · exact ih
+    · have : pivot < y := lt_of_not_le h1
+      contradiction
+
+/--
+The `quickSort` function preserves the count of each element in the list.
+-/
+theorem count_eq_count_quickSort (l : List α) (x : α) :
+    l.count x = (quickSort l).count x := by
+  fun_induction quickSort with
+  | nil => rfl
+  | cons pivot l ih1 ih2 =>
+    simp only [quickSort_cons, List.count_append, List.count_cons]
+    rw [← ih1, ← ih2]
+    rw [count_sum_above_below_pivot pivot l x]
+    omega
+
+end Count -- closes the current namespace or section

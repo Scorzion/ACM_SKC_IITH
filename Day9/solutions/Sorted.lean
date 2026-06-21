@@ -1,0 +1,205 @@
+import Mathlib -- imports definitions and theorems used below
+
+/-!
+## Prerequisite files
+
+* `IsEven.lean` - inductive propositions and basic use of `grind`.
+* `NonAtom.lean` - constructing typeclasses; typeclass fields and instances.
+* `Smallest.lean` - smallest element in an ordered list.
+
+## Main concepts introduced
+
+* sorted-list predicates.
+* equivalent characterizations of sortedness.
+-/
+
+/-!
+# Sorted Lists
+
+This module defines the property of a list being sorted and provides various
+theorems and alternative characterizations, such as monotonicity.
+-/
+
+namespace langur -- starts a namespace to group the tutorial definitions
+variable {α : Type}[LinearOrder α]
+
+/--
+Inductive predicate for a sorted list.
+* The empty list is sorted.
+* A single-element list is sorted.
+* A list starting with `x` and `y` is sorted if `x ≤ y` and the tail starting with `y` is sorted.
+-/
+@[grind cases] -- annotation controlling elaboration, simplification, or automation
+inductive Sorted : List α → Prop -- declares the inductive type or proposition `Sorted`
+  | nil : Sorted [] -- declares another constructor or syntax alternative
+  | singleton (x : α) : Sorted [x] -- declares another constructor or syntax alternative
+  | step (x y : α) (l : List α) (hxy: x ≤ y) -- declares another constructor or syntax alternative
+      (tail_sorted: Sorted (y :: l)) : Sorted (x :: y :: l)
+
+/--
+The empty list is sorted.
+-/
+@[grind .]
+theorem nil_sorted : Sorted ([] : List α) := Sorted.nil -- defines `nil_sorted` as a proof of `Sorted []` using the constructor `Sorted.nil`
+
+/--
+A single-element list is sorted.
+-/
+@[grind .]
+theorem singleton_sorted (x : α) : Sorted [x] := Sorted.singleton x
+
+/--
+If a list is sorted, its head is less than or equal to all other elements in the list.
+-/
+@[grind .] -- annotation controlling elaboration, simplification, or automation
+theorem head_le_of_sorted  (a: α) (l : List α) : Sorted (a :: l) → ∀ x ∈ l, a ≤ x := by -- starts tactic mode; the following tactics prove the proposition just stated
+  intro h -- moves leading forall variables or implication hypotheses into the local context
+  match h with -- splits computation into cases by pattern matching
+  | Sorted.singleton .. => simp -- matches a sorted singleton list proof and simplifies this proof case
+  | Sorted.step .(a) y l hxy tail_sorted => -- matches a sorted list built from a head and sorted tail and proves this case using the following proof steps
+    have ih := head_le_of_sorted y l tail_sorted -- records an intermediate fact for the proof
+    grind -- uses `grind` to combine simplification, constructor facts, and hypotheses until the goal closes
+
+/--
+A list is sorted if its tail is sorted and the new head is less than or equal to all elements in the tail.
+-/
+@[grind .] -- annotation controlling elaboration, simplification, or automation
+theorem cons_sorted_of_le (l : List α) :  Sorted l → (a : α) → (∀ y ∈ l, a ≤ y) → Sorted (a :: l)  := by
+  intro h₁ a h₀ -- moves leading forall variables or implication hypotheses into the local context
+  match l with -- splits computation into cases by pattern matching
+  | [] => -- matches the empty list and proves this case with the tactic steps below
+    apply Sorted.singleton -- applies `Sorted.singleton` backwards, replacing the current goal by its premises
+  | x :: l' => -- matches a nonempty list and proves this case with the tactic steps below
+    grind [Sorted.step] -- uses `grind` with the listed lemmas unfolded or available to close the remaining goal
+
+/-!
+## Example: A sorted list
+-/
+example : Sorted [1, 3, 3, 5, 12, 12, 15] := by -- states and proves an example of a sorted list
+  grind (splits := 100) (ematch := 20) (gen := 100) -- uses `grind` to combine simplification, constructor facts, and hypotheses until the goal closes
+
+/-!
+## Sorted lists and monotone lists
+
+We in some sense axiomatized the property of being sorted by saying that the head is less than or equal to the next element, and so on. We can also give an alternative characterization of sorted lists by saying that a list is sorted if it is monotone (i.e., non-decreasing). We show that these two characterizations are equivalent.
+
+Such results are useful in making sure that our definitions are robust and capture the intended concept. They also allow us to use whichever characterization is more convenient in a given proof.
+-/
+
+#eval [1, 3, 5][2]
+
+/--
+Predicate for checking if a list is monotone (non-decreasing).
+-/
+@[grind .] -- annotation controlling elaboration, simplification, or automation
+def Monotone (l : List α) : Prop := ∀ i j, -- defines `monotone`
+  (h₁: i < j) → (h₂ : j < l.length) →
+    l[i] ≤ l[j]
+
+/--
+Every sorted list is monotone.
+-/
+theorem monotone_of_sorted (l : List α) -- states and proves theorem `monotone_of_sorted`
+  (h : Sorted l) : Monotone l := by
+  induction h with
+  | nil => grind -- matches the empty list and asks `grind` to solve this case
+  | singleton x => -- matches a sorted singleton list proof and proves this case with the tactic steps below
+    grind -- uses `grind` to combine simplification, constructor facts, and hypotheses until the goal closes
+  | step x y l hxy tail_sorted ih => -- matches a sorted list built from a head and sorted tail and returns `intro i j h₁ h₂`
+    intro i j h₁ h₂ -- moves leading forall variables or implication hypotheses into the local context
+    cases i with -- splits or inverts `i with`, creating one goal for each possible constructor
+    | zero => -- matches zero and returns `cases j with`
+      cases j with -- splits or inverts `j with`, creating one goal for each possible constructor
+      | zero => contradiction -- matches zero and closes the impossible case by contradiction
+      | succ j' => -- matches a successor natural number and returns `trans y <;> grind`
+        trans y <;> grind
+    | succ i' => -- matches a successor natural number and returns `cases j with`
+      cases j with -- splits or inverts `j with`, creating one goal for each possible constructor
+      | zero => contradiction -- matches zero and closes the impossible case by contradiction
+      | succ j' => grind -- matches a successor natural number and asks `grind` to solve this case
+
+/--
+If a list is monotone, its tail is also monotone.
+-/
+@[grind .] -- annotation controlling elaboration, simplification, or automation
+theorem tail_monotone_of_monotone {y: α}   {ys : List α} (h : Monotone (y :: ys)) : Monotone ys :=
+  by -- starts tactic mode; the following tactics prove the proposition just stated
+  intro i j h₁ h₂ -- moves leading forall variables or implication hypotheses into the local context
+  have h₁' : i + 1 < j + 1 := by -- records an intermediate fact for the proof
+    grind -- uses `grind` to combine simplification, constructor facts, and hypotheses until the goal closes
+  have h₂' : j + 1 < (ys.length + 1) := by -- records an intermediate fact for the proof
+    grind -- uses `grind` to combine simplification, constructor facts, and hypotheses until the goal closes
+  specialize h (i + 1) (j + 1) h₁' h₂'
+  grind -- uses `grind` to combine simplification, constructor facts, and hypotheses until the goal closes
+
+
+@[grind .]
+theorem fst_le_snd_of_monotone {x y : α} {l : List α} (h : Monotone (x :: y :: l)) : x ≤ y := by
+  apply h 0 1 <;> simp
+
+
+/--
+Every monotone list is sorted.
+-/
+theorem sorted_of_monotone (l : List α) -- states and proves theorem `sorted_of_monotone`
+  (h : Monotone l) : Sorted l := by
+  induction l with
+  | nil => apply Sorted.nil -- matches the empty list and applies Sorted.nil
+  | cons x xs ih => -- matches a nonempty list and returns `cases xs with`
+    cases xs with -- splits or inverts `xs with`, creating one goal for each possible constructor
+    | nil => apply Sorted.singleton -- matches the empty list and applies Sorted.singleton
+    | cons y ys => -- matches a nonempty list and proves this case with the tactic steps below
+      apply Sorted.step <;> grind -- applies `Sorted.step` backwards, replacing the current goal by its premises
+
+theorem sorted_eq_of_perm {l₁ l₂ : List α} (h₁ : Sorted l₁) (h₂ : Sorted l₂) (hp : l₁ ~ l₂) : l₁ = l₂ := by
+  induction l₁ generalizing l₂ with
+  | nil =>
+    have := List.Perm.nil_eq hp.symm
+    subst this
+    rfl
+  | cons x xs ih =>
+    cases l₂ with
+    | nil =>
+      have := List.Perm.nil_eq hp
+      contradiction
+    | cons y ys =>
+      have hx_min : ∀ z ∈ y :: ys, x ≤ z := by
+        intro z hz
+        have hz_in : z ∈ x :: xs := hp.symm.mem_iff.mp hz
+        cases hz_in with
+        | head => exact le_refl x
+        | tail _ hz_xs => exact head_le_of_sorted x xs h₁ z hz_xs
+      have hy_min : ∀ z ∈ x :: xs, y ≤ z := by
+        intro z hz
+        have hz_in : z ∈ y :: ys := hp.mem_iff.mp hz
+        cases hz_in with
+        | head => exact le_refl y
+        | tail _ hz_ys => exact head_le_of_sorted y ys h₂ z hz_ys
+      have hx_le_y : x ≤ y := hx_min y (List.Mem.head ys)
+      have hy_le_x : y ≤ x := hy_min x (List.Mem.head xs)
+      have hxy : x = y := le_antisymm hx_le_y hy_le_x
+      subst hxy
+      have hp_tail : xs ~ ys := List.Perm.cons_inv hp
+      have h1_tail : Sorted xs := by
+        cases xs with
+        | nil => exact nil_sorted
+        | cons y' ys' =>
+          cases h₁ with
+          | step _ _ _ _ tail_sorted => exact tail_sorted
+      have h2_tail : Sorted ys := by
+        cases ys with
+        | nil => exact nil_sorted
+        | cons y' ys' =>
+          cases h₂ with
+          | step _ _ _ _ tail_sorted => exact tail_sorted
+      have ih_tail := ih h2_tail hp_tail
+      subst ih_tail
+      rfl
+
+end langur -- closes the current namespace or section
+/-!
+## Next files
+
+* `QuickSort.lean` - quicksort; termination arguments; sortedness proofs.
+* `SelectionSort.lean` - selection sort; recursive sorting with correctness proofs.
+-/

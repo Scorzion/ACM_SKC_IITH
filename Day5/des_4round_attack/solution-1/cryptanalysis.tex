@@ -1,0 +1,196 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+\newcommand{\xor}{\oplus}
+\newcommand{\hx}[1]{\texttt{0x#1}}
+
+\title{Differential Cryptanalysis of 4-Round DES\\\large Reference Solution and Query-Budget Justification}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{The cipher}
+
+The oracle implements DES reduced to four rounds with the standard FIPS-46
+S-boxes and the standard $E$, $P$, PC-1, PC-2 tables and shift schedule
+$[1,1,2,2]$. The initial and final permutations are omitted; since they are
+fixed, key-independent bit permutations they have no effect on a differential
+attack. Writing each round as
+\[
+  L_i = R_{i-1}, \qquad R_i = L_{i-1} \xor F(R_{i-1}, K_i),
+\]
+the 64-bit output (with the standard pre-output swap) is
+\[
+  C = (R_4 \,\|\, L_4).
+\]
+A prime denotes an XOR difference between the two members of a chosen-plaintext
+pair, e.g.\ $R_2' = R_2 \xor R_2^{*}$.
+
+\paragraph{Oracle access.}
+The attack is mounted purely through the deployed encryption oracle's HTTP JSON
+API (\texttt{POST /api/encrypt} with body \texttt{\{"plaintext": "<16 hex>"\}},
+returning \texttt{\{"ciphertext": "<16 hex>"\}}); the secret key is never read
+by the attack code. All numbers reported below are from a live run against the
+remote oracle at \url{http://des.rathanappana.com}.
+
+\section{Reduction to a last-round attack}
+
+Two halves are read \emph{directly} from the ciphertext:
+\[
+  R_4 = C_{[0:32]}, \qquad R_3 = L_4 = C_{[32:64]}.
+\]
+Because $R_4 = R_2 \xor F(R_3, K_4)$, the output difference of the fourth-round
+$F$ function satisfies
+\begin{equation}
+  F(R_3, K_4)\xor F(R_3^{*},K_4) \;=\; R_4' \xor R_2'.
+  \label{eq:lastround}
+\end{equation}
+The input to that $F$ function, $R_3 = L_4$, is known for both texts, so its
+input XOR is the (linear) expansion $E(R_3')=E(L_4')$. If we can also predict
+$R_2'$, then \eqref{eq:lastround} gives both the input and output difference of
+each fourth-round S-box, which is exactly what a one-round (last-round) key
+search needs. Predicting $R_2'$ is the job of the differential characteristic
+over rounds 1--2.
+
+\section{The differential characteristic}
+
+We use chosen plaintext pairs with difference $P' = (L_0',\,0)$, i.e.\ the two
+plaintexts differ only in the left half:
+\begin{itemize}[nosep]
+  \item \textbf{Round 1 (probability 1).} The right halves are equal
+        ($R_0' = 0$), so $F(R_0,K_1)=F(R_0^{*},K_1)$ and
+        $R_1' = L_0' \xor 0 = L_0'$, with $L_1' = R_0' = 0$.
+  \item \textbf{Round 2 (probability $p$).} The S-box input difference is
+        $E(R_1')=E(L_0')$. We choose $L_0'$ so that $E(L_0')$ is non-zero only
+        in the six bits feeding a single S-box, and so that the two
+        \emph{outer} (neighbour-shared) bits of that chunk are zero. Then
+        exactly one S-box is active and no neighbours are disturbed.
+\end{itemize}
+Searching the DDTs over all input differences of the form
+$\hx{0}\,b_2b_3b_4b_5\,\hx{0}$ (outer bits zero), the best entry is in
+$\mathbf{S2}$:
+\[
+  \Delta_{\text{in}} = \hx{08} \;\longrightarrow\; \Delta_{\text{out}} = \hx{a},
+  \qquad \text{count } 16/64,\quad p = \tfrac{16}{64} = \tfrac14 .
+\]
+The corresponding left-half input difference is $L_0' = \hx{04000000}$, and
+since $R_2' = L_1' \xor F\text{-out}_2 = 0 \xor P(\Delta_{\text{out}}\text{ in S2})$,
+right pairs have the \emph{constant}
+\[
+  R_2' = c = \hx{40080000}.
+\]
+
+\section{Last-round key recovery by counting}
+
+For each pair we form the predicted fourth-round $F$-output difference for a
+right pair, $R_4' \xor R_2'$, undo $P$ to obtain the eight expected S-box output
+differences, and read the eight input differences from $E(L_4')$. For each S-box
+$m$ with non-zero input difference and every 6-bit key candidate
+$k \in \{0,\dots,63\}$ we increment a counter when
+\[
+  S_m\!\big(a_m \xor k\big) \xor S_m\!\big(b_m \xor k\big) = \Delta^{\text{out}}_m,
+\]
+where $a_m,b_m$ are the actual 6-bit S-box inputs $E(R_3)_m, E(R_3^{*})_m$. The
+correct $K_4$ chunk is suggested by every right pair, while wrong pairs add
+roughly uniform noise.
+
+\paragraph{A strong structural simplification.}
+The prediction error equals
+$\text{perm}P^{-1}(R_2' \xor c)$. Because round 2 has a
+\emph{single} active S-box (S2), this error is non-zero only in S2's output
+nibble. Consequently the predicted output difference is \emph{exactly correct
+for every pair} (right or wrong) for the seven S-boxes other than the one tied
+to the characteristic, and only the characteristic-linked S-box depends on the
+probability $p$. In the run this is visible: seven S-boxes are recovered with
+votes equal to their active-pair count, while S2 is resolved by its right
+pairs.
+
+\begin{center}
+\begin{tabular}{lcccccccc}
+\toprule
+S-box & S1 & S2 & S3 & S4 & S5 & S6 & S7 & S8 \\
+\midrule
+votes / active & 333/333 & 62/342 & 369/369 & 378/378 & 371/371 & 388/388 & 358/358 & 363/363 \\
+$K_4$ chunk & \hx{22} & \hx{16} & \hx{39} & \hx{21} & \hx{26} & \hx{3a} & \hx{1f} & \hx{23} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Every S-box except S2 attains votes equal to its active-pair count, confirming
+deterministic recovery; S2 is resolved by its $62$ right pairs. This recovers
+all 48 bits of $K_4 = \hx{896E619BA7E3}$.
+
+\section{Full key reconstruction}
+
+$K_4 = \mathrm{PC2}\big(\text{rotl}(C_0,6)\,\|\,\text{rotl}(D_0,6)\big)$, where
+$6 = 1{+}1{+}2{+}2$ is the total rotation after four rounds. PC-2 keeps 48 of
+the 56 key-schedule bits, so 8 bits are unknown. We undo the rotations,
+brute-force the $2^8 = 256$ missing bits against one known
+plaintext/ciphertext pair, and invert PC-1 to obtain the 14-hex (56-bit) key.
+The live run recovers
+\[
+  \boxed{\text{key} = \hx{8B2F88A663CB4D}}
+\]
+which reproduces the oracle on 20 fresh random plaintexts (verification
+\textsc{pass}).
+
+\section{Justification of the 822 oracle queries}
+
+The figure 822 is the \emph{total number of oracle calls}, not the number of
+pairs. It decomposes as
+\[
+  \underbrace{1}_{\text{connectivity probe}}
+  \;+\;
+  \underbrace{400 \text{ pairs} \times 2}_{800 \text{ (counting attack)}}
+  \;+\;
+  \underbrace{1}_{\text{known pair for the 8-bit brute force}}
+  \;+\;
+  \underbrace{20}_{\text{fresh-plaintext verification}}
+  \;=\; 822 .
+\]
+(The probe is a single sanity-check encryption confirming the HTTP endpoint;
+dropping it gives the leaner $821$.)
+
+\paragraph{Why 400 pairs suffice.}
+Seven of the eight $K_4$ chunks are recovered deterministically (Section~4): a
+chunk only needs its S-box to be \emph{active} in a handful of pairs, and since
+$L_4'$ is effectively random per pair, each S-box is active in $\sim\!83$--$97\%$
+of pairs (333--388 of 400 above). The binding constraint is the single
+probabilistic S-box (S2). The number of right pairs for it is
+\[
+  \mathbb{E}[\text{right pairs}] \approx p \times (\text{pairs where S2 is active})
+  \approx \tfrac14 \times 342 \approx 85,
+\]
+and the run records 62 reinforcing votes for the recovered 6-bit value. The
+signal-to-noise argument of Biham--Shamir applies: with a 6-bit counted
+subkey ($2^6$ candidates), characteristic probability $p = 1/4$, and a single
+active S-box, the signal-to-noise ratio is
+\[
+  \frac{S}{N} \;\approx\; \frac{2^{6}\, p}{\beta\,\gamma} \;\gg\; 1,
+\]
+so a few tens of right pairs already separate the correct key from the noise
+floor; the $\sim\!62$ obtained give a comfortable margin against all 63 wrong
+candidates.
+
+\paragraph{Why not fewer, and why not more.}
+Fewer pairs (e.g.\ 100--150) would still likely succeed but shrink the S2
+margin and make the result sensitive to the particular key/data; 400 pairs buys
+a safety factor of several while keeping the attack robust across keys. We do
+not use more because the oracle enforces a \textbf{1000 queries/day per user}
+limit: at 800 counting queries plus the 22 probe/reconstruction/verification
+queries ($=822$) the attack fits within a single day's budget with
+$\sim\!178$ queries of headroom, leaving room for connection retries and a
+partial re-run without tripping the rate limiter. In short, 400 pairs is the
+sweet spot: large enough for a wide success margin on the only probabilistic
+S-box, small enough to complete comfortably inside one day's query allowance.
+
+\end{document}

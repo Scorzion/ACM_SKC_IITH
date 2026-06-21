@@ -1,0 +1,97 @@
+\documentclass{article}
+\usepackage{amsmath, amssymb, amsthm, geometry, hyperref}
+\geometry{a4paper, margin=1in}
+
+\title{ACM India Summer School on Symmetric Key Cryptography \\ Day 9: Verifiable Credentials and Formal Verification in Lean 4}
+\author{Sourav Sharma}
+\date{June 16, 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+Day 9 of the ACM India Summer School on Symmetric Key Cryptography was split into two key enterprise-grade cryptography sessions:
+\begin{enumerate}
+    \item \textbf{Cryptography for Enterprises: Verifiable Credentials (VCs)}: Analyzing decentralized identity architectures (DIDs, VCs, VPs), selective disclosure mechanisms, zero-knowledge proofs, and privacy-preserving signatures (SD-JWT and BBS+).
+    \item \textbf{Formal Verification in Lean 4}: Hands-on experience with Lean 4, a functional programming language and interactive theorem prover, focusing on list algorithms, custom induction, typeclasses, and algorithmic correctness proofs.
+\end{enumerate}
+
+Below, I present the architectural details of Verifiable Credentials, the concepts behind Lean 4 formal verification, and the mathematical proofs implemented for the hands-on exercises in the \href{file:///home/scorzion/Tech/Crypto/SKC_IITH/Day9/solutions/}{\texttt{solutions/}} folder.
+
+\section{Enterprise Trust: Verifiable Credentials (VCs)}
+
+\subsection{Architectural Model: The Trust Triangle}
+Decentralized identity moves control from service/identity providers to the user (Holder). It is modeled as a trust triangle:
+\begin{itemize}
+    \item \textbf{Issuer}: Asserts attributes about a subject, signs them, and delivers a Verifiable Credential (VC) to the Holder.
+    \item \textbf{Holder}: Stores the VC in a digital Wallet and derives a Verifiable Presentation (VP) containing selective claims or proofs to show the Verifier.
+    \item \textbf{Verifier}: Validates the VP's cryptographic signatures and metadata (such as revocation status) using keys fetched from a Verifiable Data Registry (VDR) without contacting the Issuer.
+\end{itemize}
+
+\subsection{Selective Disclosure and Unlinkability}
+A major goal of decentralized credentials is data minimization. We want to prove attributes (e.g., $Age \ge 18$) without revealing sensitive data (e.g., Date of Birth) and prevent correlation across multiple presentations (unlinkability).
+\begin{itemize}
+    \item \textbf{SD-JWT (Selective Disclosure JSON Web Tokens)}: Combines salted hash digests of individual attributes with an Issuer's signature. The Holder discloses only selected attributes along with their salts, allowing the Verifier to compute the hashes and check them against the signature. It is simple but does not natively support predicates or unlinkability.
+    \item \textbf{BBS+ Signatures}: Pairing-based signatures that sign multiple messages $(m_1, \dots, m_n)$ simultaneously. The Holder can construct a zero-knowledge Proof of Possession (PoK) of the signature while disclosing only a subset of attributes. The hidden attributes remain committed in the proof, ensuring complete unlinkability across presentations.
+    \item \textbf{Accumulators for Revocation}: Checking credential validity in a privacy-preserving manner can be done using cryptographic accumulators. Instead of publishing a plaintext blacklist, the Issuer maintains a compact accumulator (e.g., Merkle tree, RSA accumulator, or vector commitment). The Holder provides a zero-knowledge membership or non-membership proof showing their credential ID is not in the revoked set.
+\end{itemize}
+
+\section{Formal Verification in Lean 4}
+Formal verification is the act of proving or disproving the correctness of intended algorithms with respect to a certain formal specification, using mathematical proofs. Lean 4 leverages the \textbf{Curry-Howard Correspondence}, which establishes a direct mapping between computer programs and mathematical proofs:
+\begin{itemize}
+    \item A mathematical proposition is represented as a Type.
+    \item A proof of that proposition is represented as a Term of that type.
+    \item Typechecking a term corresponds directly to verifying the proof's correctness.
+\end{itemize}
+
+Lean 4 supports inductive definitions (of both data types and propositions), pattern matching, recursive functions, typeclasses for ad-hoc polymorphism, and interactive tactic-driven proofs (using automated tactics like \texttt{simp}, \texttt{omega}, and \texttt{grind}).
+
+\section{Hands-on Exercises and Proof Solutions}
+I completed all the hands-on Lean 4 exercises and proof challenges in the \href{file:///home/scorzion/Tech/Crypto/SKC_IITH/Day9/solutions/}{\texttt{solutions/}} folder:
+
+\subsection{IsEven: Even and Odd Parity Proofs}
+In \href{file:///home/scorzion/Tech/Crypto/SKC_IITH/Day9/solutions/IsEven.lean}{\texttt{IsEven.lean}}, I defined the inductive predicate \texttt{IsOdd} for odd natural numbers:
+\begin{align*}
+    &\text{IsOdd } 1 \\
+    &\text{IsOdd } n \to \text{IsOdd } (n + 2)
+\end{align*}
+I then proved two key parity theorems:
+\begin{enumerate}
+    \item \texttt{even\_or\_odd}: For all $n \in \mathbb{N}$, $n$ is either even or odd (\texttt{IsEven n $\lor$ IsOdd n}). The proof uses strong induction on $n$. The base cases $n=0$ and $n=1$ are solved by constructor applications, and the step case $n = k + 2$ reduces to the induction hypothesis for $k$ using the \texttt{omega} tactic.
+    \item \texttt{not\_even\_and\_odd}: For all $n \in \mathbb{N}$, $n$ cannot be both even and odd (\texttt{IsEven n $\land$ IsOdd n $\to$ False}). Proved by induction on the proof term of \texttt{IsEven n}, where the base case $n=0$ is dismissed because \texttt{IsOdd 0} has no matching constructor, and the step case reduces to the induction hypothesis.
+\end{enumerate}
+
+\subsection{Smallest: Generalizing to Partial Orders}
+In \href{file:///home/scorzion/Tech/Crypto/SKC_IITH/Day9/solutions/Smallest.lean}{\texttt{Smallest.lean}}, I generalized the list minimum function to partial orders:
+\begin{itemize}
+    \item \textbf{Implementation}: Implemented \texttt{smallest} for types with a \texttt{PartialOrder} and a decidable relation \texttt{DecidableLE}:
+    \[
+    \text{smallest } (x :: y :: zs) = \text{if } x \le y \text{ then } \text{smallest } (x :: zs) \text{ else } \text{smallest } (y :: zs)
+    \]
+    \item \textbf{Element Membership}: Proved \texttt{smallest\_elem} stating that the returned element is a member of the list (\texttt{smallest l h $\in$ l}) using list induction and the \texttt{split\_ifs} tactic to split on the branches of the relation.
+    \item \textbf{Lower Bound Failure}: Showed that the lower-bound property \texttt{smallest\_le\_all} ($\forall x \in l, \text{smallest } l \le x$) is false for partial orders. I constructed the counterexample list $l = [(1, 2), (2, 1)]$ over the product partial order $\mathbb{N} \times \mathbb{N}$. Since the elements are incomparable, \texttt{smallest} returns $(2, 1)$, but $(2, 1) \not\le (1, 2)$. This was formally proved using the \texttt{decide} tactic.
+\end{itemize}
+
+\subsection{ListOps: Monadic List Comprehensions}
+In \href{file:///home/scorzion/Tech/Crypto/SKC_IITH/Day9/solutions/ListOps.lean}{\texttt{ListOps.lean}}, I implemented the function \texttt{innerPairs} using monadic \texttt{do} notation to generate a list of all pairs $(x, y)$ such that $x$ and $y$ reside in the same sublist:
+\begin{verbatim}
+def innerPairs {alpha : Type} (ll : List (List alpha)) : List (alpha * alpha) := do
+  let l <- ll
+  let x <- l
+  let y <- l
+  pure (x, y)
+\end{verbatim}
+
+\subsection{Sorted: Permuted Sorted Lists Equality}
+In \href{file:///home/scorzion/Tech/Crypto/SKC_IITH/Day9/solutions/Sorted.lean}{\texttt{Sorted.lean}}, I proved \texttt{sorted\_eq\_of\_perm} showing that two sorted lists containing the same elements with the same multiplicities are identical (\texttt{l\_1} $\sim$ \texttt{l\_2} $\to$ \texttt{Sorted l\_1} $\to$ \texttt{Sorted l\_2} $\to$ \texttt{l\_1 = l\_2}).
+The proof proceeds by list induction on $l_1$. In the step case $l_1 = x :: xs$ and $l_2 = y :: ys$, we show $x \le y$ and $y \le x$ using the sorted bound property \texttt{head\_le\_of\_sorted}, which yields $x = y$ by anti-symmetry. We then cancel the head from the permutation using \texttt{List.Perm.cons\_inv} to get $xs \sim ys$, establish that the tails are sorted, and apply the induction hypothesis to conclude $xs = ys$.
+
+\subsection{QuickSort: Verification of Count Preservation}
+In \href{file:///home/scorzion/Tech/Crypto/SKC_IITH/Day9/solutions/QuickSort.lean}{\texttt{QuickSort.lean}}, I completed two important verification proofs:
+\begin{enumerate}
+    \item \texttt{count\_sum\_above\_below\_pivot}: Proved that the count of an element $x$ in a list equals the sum of its counts in the partitioned sublists. The proof uses induction on $l$, expanding the filters and solving case-splits with \texttt{split\_ifs}. It handles linear order contradictions (e.g. $y \le \text{pivot} \land \text{pivot} < y$) using `lt\_irrefl` and `lt\_of\_not\_le`.
+    \item \texttt{count\_eq\_count\_quickSort}: Proved that QuickSort preserves element counts. Proved by \texttt{fun\_induction} on \texttt{quickSort}, using the count sum partition lemma and list append properties, simplified to an arithmetic identity resolved by \texttt{omega}.
+\end{enumerate}
+
+\end{document}

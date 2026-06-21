@@ -1,0 +1,15 @@
+1. Implement the Salsa20 Quarter Round function and verify its output using a given test vector.
+
+2. Implement the Row Round and Column Round transformations of Salsa20.
+
+3. Implement the Double Round operation and verify its correctness.
+
+4. Encrypt a given plaintext using Salsa20 and obtain the corresponding ciphertext. (To Do)
+
+5. Decrypt the ciphertext generated in the previous exercise and verify that the original plaintext is recovered. (To Do)
+
+6. Compute the Hamming weight of a Salsa 1 round after considering ΔX= X_7 [31].
+
+7. Estimate the differential probability of a selected input difference-output difference pair for Salsa20/4.  Input ΔX= X_7 [31], Output ΔX= X_1 [14]. Prob=0.56 .
+
+Those who have done all the tasks can share their codes. Also, try the stream cipher questions shared in the afternoon session.

@@ -1,0 +1,81 @@
+\documentclass{article}
+\usepackage{amsmath, amssymb, amsthm, geometry}
+\geometry{a4paper, margin=1in}
+
+\title{ACM India Summer School on Symmetric Key Cryptography \\ Day 1: Practical Cryptanalysis of Classical Ciphers}
+\author{Sourav Sharma}
+\date{June 8, 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+In the first day of the lab, we implemented and analyzed various classical ciphers, categorized into substitution, transposition, polygraphic, and polyalphabetic schemes. This report outlines the mathematical model, decryption strategy, and key recovery techniques used for each cipher.
+
+\section{Substitution Ciphers}
+
+\subsection{Caesar Cipher}
+The Caesar cipher is a monoalphabetic substitution cipher where each character in the plaintext is shifted by a fixed key of $k = 3$. 
+The decryption process is modeled as:
+\[ D(c) = (c - 3) \bmod 26 \]
+Our implementation shifts alphabetical characters backward by 3 positions modulo 26, maintaining case preservation and leaving punctuation unchanged. The recovered plaintext starts with: \textit{``Caesar cipher is one of the earliest...''}
+
+\subsection{Shift Cipher}
+The shift cipher generalize the Caesar cipher to any shift key $k \in \{0, 1, \dots, 25\}$. The decryption formula is:
+\[ D(c) = (c - k) \bmod 26 \]
+Given a ciphertext and the key $k = 22$, we applied the modular shifts directly to recover the plaintext: \textit{``Cryptography is a fundamental tool in information security...''}
+
+\subsection{Atbash Cipher}
+The Atbash cipher is a specific monoalphabetic substitution where the alphabet is mapped to its reverse. Mathematically, for a letter at 0-indexed position $p \in \{0, \dots, 25\}$, the ciphertext index is:
+\[ C(p) = 25 - p \]
+Since this cipher is its own inverse (involution), the decryption algorithm uses the exact same mapping. The recovered plaintext is: \textit{``Cryptography is the science of securing information...''}
+
+\subsection{Affine Cipher}
+The Affine cipher combines linear multiplication and shift. The encryption function is:
+\[ E(x) = (ax + b) \bmod 26 \]
+where $\gcd(a, 26) = 1$. The decryption requires the modular multiplicative inverse of $a$:
+\[ D(y) = a^{-1}(y - b) \bmod 26 \]
+For the given parameters $a = 5$ and $b = 8$, we first calculated the modular inverse $5^{-1} \pmod{26}$. Since $5 \times 21 = 105 \equiv 1 \pmod{26}$, we have $a^{-1} = 21$.
+Applying $D(y) = 21(y - 8) \bmod 26$ successfully decrypted the ciphertext to: \textit{``Cryptography is the science of securing information...''}
+
+\section{Transposition Ciphers}
+
+\subsection{Scytale Cipher}
+The Scytale cipher is an ancient transposition cipher. The plaintext is wrapped around a rod of diameter $d$ (which determines the number of rows/turns). The text is written row-by-row and read column-by-column. 
+For a given number of rows $r$, the number of columns is $c = \lceil L / r \rceil$ where $L$ is the length of the plaintext. Decryption distributes the ciphertext characters into columns (taking care of padding for non-perfect grid divisions) and reads the grid row-by-row. We verified our implementation using the plaintext \texttt{HELLOWORLD} with rows $r = 3$ (resulting in \texttt{HOLEWDLOLR}) and $r = 4$ (resulting in \texttt{HLODEORLWL}).
+
+\subsection{Rail Fence Cipher}
+The Rail Fence cipher writes characters in a diagonal zigzag pattern across $k$ horizontal rails, and then reads them row-by-row. Decryption computes the exact length of each rail to reconstruct the zigzag path, placing the ciphertext characters back onto their corresponding tracks before tracing the original path. We verified this transposition using \texttt{HELLOWORLD} with keys $k = 3$ and $k = 4$, matching the expected outputs.
+
+\section{Polygraphic Ciphers}
+
+\subsection{Hill Cipher}
+The Hill cipher is a polygraphic substitution cipher based on linear algebra. Using a block size of $m = 2$, we encrypt digraphs (pairs of letters) represented as vectors $P$ using an invertible matrix $K$:
+\[ C \equiv K \cdot P \pmod{26} \]
+Decryption uses the modular inverse of the matrix $K$:
+\[ P \equiv K^{-1} \cdot C \pmod{26} \]
+For the key matrix:
+\[ K = \begin{pmatrix} 3 & 3 \\ 2 & 5 \end{pmatrix} \]
+We computed its determinant:
+\[ \det(K) = (3 \times 5 - 3 \times 2) \bmod 26 = 9 \]
+The modular inverse of 9 mod 26 is 3 (since $9 \times 3 = 27 \equiv 1 \pmod{26}$). The adjugate matrix is:
+\[ \text{adj}(K) = \begin{pmatrix} 5 & -3 \\ -2 & 3 \end{pmatrix} \equiv \begin{pmatrix} 5 & 23 \\ 24 & 3 \end{pmatrix} \pmod{26} \]
+Thus, the inverse matrix is:
+\[ K^{-1} = 3 \cdot \begin{pmatrix} 5 & 23 \\ 24 & 3 \end{pmatrix} = \begin{pmatrix} 15 & 69 \\ 72 & 9 \end{pmatrix} \equiv \begin{pmatrix} 15 & 17 \\ 20 & 9 \end{pmatrix} \pmod{26} \]
+Using $K^{-1}$, the digraphs of the ciphertext \texttt{HIAT} were decrypted back to the plaintext \texttt{HELP}.
+
+\section{Polyalphabetic Ciphers}
+
+\subsection{Vigen\`ere Cipher}
+The Vigen\`ere cipher uses a repeating keyword to shift each plaintext character by varying offsets. Decryption shifts the $i$-th character of the ciphertext backward by the offset corresponding to the $(i \bmod m)$-th character of the key.
+
+For cryptanalysis, the slide's exercise contains a long ciphertext.
+\begin{enumerate}
+    \item \textbf{Key Length Estimation}: We used the Kasiski Examination method. The recurring pattern \texttt{CHR} appears at positions 1, 166, 236, 276, and 286. The distances between occurrences are:
+    \[ 166-1=165, \quad 236-1=235, \quad 276-1=275, \dots \]
+    The greatest common divisor of these distances is $\gcd(165, 235, 275, 285) = 5$, indicating a key length of $m = 5$. This was verified using the Index of Coincidence (IC), which reached the expected English text IC value ($\approx 0.065$) at $m = 5$.
+    \item \textbf{Keyword Recovery}: Frequency analysis of the five cosets (each fifth letter) yielded shifts corresponding to the keyword \texttt{JANET}. Decrypting with this key recovered the plaintext starting with: \textit{``The almond tree was in tentative blossom...''}
+\end{enumerate}
+
+\end{document}

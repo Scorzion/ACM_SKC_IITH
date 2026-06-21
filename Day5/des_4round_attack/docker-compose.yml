@@ -1,0 +1,36 @@
+# Single shared-key 4-round DES oracle.
+#
+# Architecture:
+#   client --> nginx (host port ${LISTEN_PORT}) --> oracle (internal :8000)
+#
+# nginx sets X-Forwarded-For to the real client IP so the per-IP rate limit
+# works. The oracle container is NOT published to the host, so the only way to
+# reach it is through nginx (a student cannot spoof X-Forwarded-For).
+#
+# Configure before deploying:
+#   - .env: ORACLE_KEY (14 hex chars) and optional RATE_LIMIT
+#   - LISTEN_PORT: host port to expose (default 80)
+#
+# The server IP is simply the IP of whatever host you run this on; give that
+# IP to students as http://<SERVER_IP>:<LISTEN_PORT>/ .
+
+services:
+  oracle:
+    build: .
+    image: des-oracle:latest
+    restart: always
+    env_file: .env
+    environment:
+      - RATE_LIMIT=${RATE_LIMIT:-1000/day}
+    expose:
+      - "8000"          # internal only; reachable from the proxy, not the host
+
+  proxy:
+    image: nginx:1.27-alpine
+    restart: always
+    depends_on:
+      - oracle
+    ports:
+      - "${LISTEN_PORT:-80}:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro

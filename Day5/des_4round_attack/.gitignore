@@ -1,0 +1,28 @@
+# Secrets / runtime config (never commit the real key)
+.env
+!.env.example
+
+# Python
+.tmp_venv/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+ENV/
+.ipynb_checkpoints/
+
+# Logs
+logs/
+*.log
+
+# Build output
+query
+*.o
+
+# OS
+.DS_Store
+Thumbs.db
+
+# solution(s) to the assignment
+solution/*
