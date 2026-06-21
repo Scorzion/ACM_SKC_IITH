@@ -1,5 +1,7 @@
 # ACM India Summer School on Symmetric Key Cryptography (IIT Hyderabad) 🔑🎓
 
+![IIT Hyderabad](IITH.png)
+
 This repository contains my hands-on lab solutions, custom implementations, and technical LaTeX reports from the ACM India Summer School on Symmetric Key Cryptography (June 2026) at IIT Hyderabad.
 
 ## 💡 Key Highlights
