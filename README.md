@@ -20,7 +20,7 @@ A huge thanks to Prof. Maria Francis and Prof. MV Panduranga Rao for organizing 
 
 ## 📁 Repository Structure
 
-Each day's folder (`Day1` to `Day10`) contains:
+Each day's folder (`Day01` to `Day10`) contains:
 * Official slides and lecture resources.
 * Lab templates and tasks.
 * My solutions (optimized C++ and Lean 4 code) and compiled LaTeX reports explaining my approaches.
