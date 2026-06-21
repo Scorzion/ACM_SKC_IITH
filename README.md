@@ -26,5 +26,4 @@ Each day's folder (`Day1` to `Day10`) contains:
 ---
 
 **Sourav Sharma**  
-CSE Student, IISER Bhopal  
-Contact: [souravs24@iiserb.ac.in](mailto:souravs24@iiserb.ac.in)
+CSE Student, IISER Bhopal
