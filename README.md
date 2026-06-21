@@ -44,6 +44,7 @@ Many thanks to the outstanding organizing committee at IIT Hyderabad for hosting
 *   **Dr. Nitin Kumar Sharma**
 *   **Ms. Thakkalapally Preethi**
 
+Special thanks to the **Center for Cryptography and Cybersecurity (CCS)** and **ACM India** for putting this event together, and to **Tata Consultancy Services (TCS) - Research** for sponsoring the school.
 ---
 
 ## 👤 Author
