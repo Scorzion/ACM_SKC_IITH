@@ -28,4 +28,4 @@ Each day's folder (`Day01` to `Day10`) contains:
 ---
 
 **Sourav Sharma**  
-CSE Student, IISER Bhopal
+B.Tech DSE, IISER Bhopal
